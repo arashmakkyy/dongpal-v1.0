@@ -27,6 +27,14 @@ export type Gathering = {
   createdAt: number;
   archived?: boolean;
   sourceId?: string;
+  /** Secret room token — capability URL for live sync. */
+  syncId?: string;
+  /** Last acknowledged server revision. */
+  syncRev?: number;
+  /** Canonical person id that local "me" maps to in this gathering. */
+  claimId?: string;
+  /** Expense ids removed locally; kept so a concurrent merge cannot revive them. */
+  tombstones?: string[];
 };
 
 export type Expense = {
@@ -42,6 +50,7 @@ export type Expense = {
   note?: string;
   date: number;
   createdAt: number;
+  updatedAt?: number;
   receiptImage?: string;
 };
 

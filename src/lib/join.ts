@@ -1,5 +1,5 @@
 import type { Expense, Gathering, Person, Profile } from "./types.ts";
-import type { SharePack } from "./pack.ts";
+import { canonicalMeId, type SharePack } from "./pack.ts";
 
 function nid(prefix: string) {
   return `${prefix}${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-3)}`;
@@ -18,6 +18,7 @@ export type JoinExtras = {
 };
 
 function remapExpense(e: Expense, from: string, to: string): Expense {
+  if (!from || from === to) return e;
   const shares = e.shares
     ? Object.fromEntries(
         Object.entries(e.shares).map(([k, v]) => [k === from ? to : k, v]),
@@ -67,13 +68,14 @@ export function applyJoin(
   const me = state.people.find((p) => p.isMe);
   const meId = me?.id ?? "me";
   const newId = nid("g-");
+  const myClaim = claimId === "new" ? nid("p-") : claimId;
 
   let memberIds = [...payload.gathering.memberIds];
   let expenses: Expense[] = payload.expenses.map((e) => {
     const { receiptImage: _r, ...rest } = e;
     return {
       ...rest,
-      id: nid("e-"),
+      id: e.id,
       gatheringId: newId,
     };
   });
@@ -120,6 +122,10 @@ export function applyJoin(
     memberIds: [...new Set(memberIds)],
     createdAt: Date.now(),
     archived: false,
+    claimId: myClaim,
+    syncId: payload.gathering.syncId,
+    syncRev: 0,
+    tombstones: [],
   };
 
   return {
@@ -134,4 +140,81 @@ export function applyJoin(
     },
     gatheringId: newId,
   };
+}
+
+/** Overlay a canonical remote pack onto an already-joined local gathering. */
+export function applyRemote(
+  state: JoinState,
+  gatheringId: string,
+  pack: SharePack,
+): JoinState {
+  const current = state.gatherings.find((g) => g.id === gatheringId);
+  if (!current) return state;
+  const me = state.people.find((p) => p.isMe);
+  const meId = me?.id ?? "me";
+  const claimId = current.claimId || canonicalMeId(current);
+
+  const remapId = (id: string) => (id === claimId ? meId : id);
+
+  const memberIds = [...new Set(pack.gathering.memberIds.map(remapId))];
+
+  const remappedExpenses = pack.expenses.map((e) => {
+    const { receiptImage: _r, ...rest } = remapExpense(e, claimId, meId);
+    return {
+      ...rest,
+      gatheringId,
+    };
+  });
+
+  const incoming = pack.people.filter((p) => p.id !== claimId && p.id !== meId);
+  const existingIds = new Set(state.people.map((p) => p.id));
+  const extra = incoming
+    .filter((p) => !existingIds.has(p.id))
+    .map(({ isMe: _ignored, ...p }) => p);
+
+  const people = [
+    ...state.people.map((p) => {
+      if (p.isMe || p.id === meId) return p;
+      const src = pack.people.find((x) => x.id === p.id);
+      if (!src) return p;
+      return {
+        ...p,
+        name: src.name,
+        avatar: src.avatar || p.avatar,
+        color: src.color,
+      };
+    }),
+    ...extra,
+  ];
+
+  const localById = new Map(
+    state.expenses
+      .filter((e) => e.gatheringId === gatheringId)
+      .map((e) => [e.id, e]),
+  );
+  const others = state.expenses.filter((e) => e.gatheringId !== gatheringId);
+  const expenses = [
+    ...remappedExpenses.map((e) => ({
+      ...e,
+      receiptImage: localById.get(e.id)?.receiptImage,
+    })),
+    ...others,
+  ];
+
+  const gatherings = state.gatherings.map((g) =>
+    g.id === gatheringId
+      ? {
+          ...g,
+          name: pack.gathering.name,
+          cover: pack.gathering.cover || g.cover,
+          currency: pack.gathering.currency,
+          memberIds,
+          sourceId: pack.gathering.sourceId || g.sourceId,
+          syncId: pack.gathering.syncId || g.syncId,
+          archived: pack.gathering.archived,
+        }
+      : g,
+  );
+
+  return { ...state, people, gatherings, expenses };
 }

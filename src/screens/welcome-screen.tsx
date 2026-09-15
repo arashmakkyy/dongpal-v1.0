@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { HeartMark } from "@/components/shell";
 import { Sheet } from "@/components/sheet";
 import { AvatarPicker } from "@/components/avatar-picker";
-import { decodePack, peekInvite } from "@/lib/pack";
+import { decodePack, peekInvite, peekSyncId } from "@/lib/pack";
 import { useDang } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "@tanstack/react-router";
@@ -20,6 +20,10 @@ export function WelcomeScreen() {
 
   function goHome() {
     setSeen();
+    if (peekSyncId()) {
+      navigate({ to: "/join", search: { s: peekSyncId() } });
+      return;
+    }
     const raw = peekInvite();
     if (raw && decodePack(raw)) {
       navigate({ to: "/join" });

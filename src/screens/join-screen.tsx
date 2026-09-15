@@ -8,20 +8,25 @@ import {
   clearInvite,
   decodePack,
   peekInvite,
+  peekSyncId,
   readInviteFromLocation,
+  readSyncIdFromLocation,
   stashInvite,
+  stashSyncId,
   type SharePack,
 } from "@/lib/pack";
 import { gatheringTotal } from "@/lib/settle";
 import { useDang } from "@/lib/store";
+import { fetchRoomPack } from "@/lib/sync";
 import { cn } from "@/lib/utils";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export function JoinScreen() {
   const navigate = useNavigate();
+  const search = useSearch({ strict: false }) as { p?: string; s?: string };
   const joinGathering = useDang((s) => s.joinGathering);
   const gatherings = useDang((s) => s.gatherings);
   const profile = useDang((s) => s.profile);
@@ -32,24 +37,46 @@ export function JoinScreen() {
   const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
-    function load() {
-      const raw = readInviteFromLocation() || peekInvite();
+    let cancelled = false;
+    async function load() {
+      const syncId = search.s || readSyncIdFromLocation() || peekSyncId();
+      if (syncId) {
+        stashSyncId(syncId);
+        try {
+          const room = await fetchRoomPack(syncId);
+          if (cancelled) return;
+          if (!room) {
+            setPack(null);
+            return;
+          }
+          setPack(room.pack);
+          return;
+        } catch {
+          if (!cancelled) setPack(null);
+          return;
+        }
+      }
+      const raw = search.p || readInviteFromLocation() || peekInvite();
       if (!raw) {
         setPack(null);
         return;
       }
       const decoded = decodePack(raw);
       if (decoded) stashInvite(raw);
-      setPack(decoded);
+      if (!cancelled) setPack(decoded);
     }
-    load();
-    window.addEventListener("hashchange", load);
-    window.addEventListener("popstate", load);
-    return () => {
-      window.removeEventListener("hashchange", load);
-      window.removeEventListener("popstate", load);
+    void load();
+    const onChange = () => {
+      void load();
     };
-  }, []);
+    window.addEventListener("hashchange", onChange);
+    window.addEventListener("popstate", onChange);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("hashchange", onChange);
+      window.removeEventListener("popstate", onChange);
+    };
+  }, [search.s, search.p]);
 
   function goHome() {
     clearInvite();
@@ -268,7 +295,7 @@ export function JoinScreen() {
               <ArrowLeft className="size-4" />
             </Button>
             <p className="mt-3 text-center text-[11px] text-muted">
-              بدون ثبت‌نام · همه چیز روی همین گوشی می‌ماند
+              بدون ثبت‌نام · هزینه‌ها لحظه‌ای برای همه آپدیت می‌شود
             </p>
           </>
         )}

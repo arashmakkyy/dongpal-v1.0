@@ -15,6 +15,9 @@ export type SharePack = {
 };
 
 const INVITE_KEY = "dangpal-invite";
+const SYNC_KEY = "dangpal-invite-s";
+
+export const ROOM_ID_RE = /^[A-Za-z0-9_-]{16,48}$/;
 
 type CompactV2 = {
   v: 2;
@@ -32,6 +35,7 @@ type CompactV2 = {
     number,
     string | 0,
   ][];
+  s?: string;
 };
 
 function toB64url(bytes: Uint8Array) {
@@ -49,6 +53,14 @@ function fromB64url(s: string) {
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return bytes;
+}
+
+export function canonicalMeId(
+  gathering: Pick<Gathering, "id" | "sourceId" | "claimId">,
+) {
+  if (gathering.claimId) return gathering.claimId;
+  const sourceId = gathering.sourceId || gathering.id;
+  return `h-${sourceId.replace(/[^a-z0-9]/gi, "").slice(-10) || "host"}`;
 }
 
 function toCompact(pack: SharePack): CompactV2 {
@@ -81,6 +93,7 @@ function toCompact(pack: SharePack): CompactV2 {
       e.date,
       e.note || 0,
     ]),
+    s: g.syncId,
   };
 }
 
@@ -97,6 +110,7 @@ function fromCompact(c: CompactV2): SharePack {
       createdAt,
       sourceId: id,
       archived: false,
+      syncId: c.s,
     },
     people: c.p.map(([pid, pname, avatar, color]) => ({
       id: pid,
@@ -174,10 +188,10 @@ export function packFromState(
   expenses: Expense[],
 ): SharePack {
   const members = people.filter((p) => gathering.memberIds.includes(p.id));
-  const hostTag = `h-${gathering.id.replace(/[^a-z0-9]/gi, "").slice(-8) || "host"}`;
+  const meCanonical = canonicalMeId(gathering);
   const idMap = new Map<string, string>();
   const packedPeople: Person[] = members.map((p) => {
-    const id = p.isMe || p.id === "me" ? hostTag : p.id;
+    const id = p.isMe || p.id === "me" ? meCanonical : p.id;
     idMap.set(p.id, id);
     return {
       ...p,
@@ -207,11 +221,15 @@ export function packFromState(
   return {
     v: 1,
     gathering: {
-      ...gathering,
       id: sourceId,
       sourceId,
+      name: gathering.name,
+      cover: gathering.cover,
       memberIds: mappedIds,
+      currency: gathering.currency,
+      createdAt: gathering.createdAt,
       archived: false,
+      syncId: gathering.syncId,
     },
     people: packedPeople,
     expenses: packedExpenses,
@@ -220,19 +238,45 @@ export function packFromState(
 
 export function joinUrl(encoded: string) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  // Query survives in-app browsers that drop the hash; hash survives long URLs.
   if (encoded.length <= 1600) return `${origin}/join?p=${encoded}`;
   return `${origin}/join#${encoded}`;
 }
 
-export function readJoinHash(hash = ""): string {
+export function liveJoinUrl(syncId: string) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  return `${origin}/join?s=${encodeURIComponent(syncId)}`;
+}
+
+export function inviteUrl(
+  gathering: Gathering,
+  people: Person[],
+  expenses: Expense[],
+) {
+  if (gathering.syncId) return liveJoinUrl(gathering.syncId);
+  return joinUrl(encodePack(packFromState(gathering, people, expenses)));
+}
+
+export function readJoinHash(hash = "") {
   const h = hash.startsWith("#") ? hash.slice(1) : hash;
   return h;
 }
 
-export function readInviteFromLocation(loc: Pick<Location, "search" | "hash"> = typeof window === "undefined" ? { search: "", hash: "" } : window.location): string {
+export function readInviteFromLocation(
+  loc: Pick<Location, "search" | "hash"> = typeof window === "undefined"
+    ? { search: "", hash: "" }
+    : window.location,
+): string {
   const q = new URLSearchParams(loc.search).get("p") || "";
   return q || readJoinHash(loc.hash);
+}
+
+export function readSyncIdFromLocation(
+  loc: Pick<Location, "search"> = typeof window === "undefined"
+    ? { search: "" }
+    : window.location,
+): string {
+  const s = new URLSearchParams(loc.search).get("s") || "";
+  return ROOM_ID_RE.test(s) ? s : "";
 }
 
 export function stashInvite(raw: string) {
@@ -257,7 +301,28 @@ export function clearInvite() {
   if (typeof sessionStorage === "undefined") return;
   try {
     sessionStorage.removeItem(INVITE_KEY);
+    sessionStorage.removeItem(SYNC_KEY);
   } catch {
     /* ignore */
+  }
+}
+
+export function stashSyncId(id: string) {
+  if (typeof sessionStorage === "undefined") return;
+  if (!ROOM_ID_RE.test(id)) return;
+  try {
+    sessionStorage.setItem(SYNC_KEY, id);
+  } catch {
+    /* private mode quota */
+  }
+}
+
+export function peekSyncId(): string {
+  if (typeof sessionStorage === "undefined") return "";
+  try {
+    const s = sessionStorage.getItem(SYNC_KEY) || "";
+    return ROOM_ID_RE.test(s) ? s : "";
+  } catch {
+    return "";
   }
 }

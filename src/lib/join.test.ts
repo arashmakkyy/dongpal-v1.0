@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { applyJoin, findJoinedGathering } from "./join.ts";
+import { applyJoin, applyRemote, findJoinedGathering } from "./join.ts";
 import {
   decodePack,
   encodePack,
@@ -78,6 +78,8 @@ test("fresh device always gets the identity picker path (no seed collision)", ()
   assert.equal(result.expenses[0].payerId, "me");
   assert.equal(result.profile.seenWelcome, true);
   assert.equal(result.profile.name, "علی");
+  assert.equal(result.expenses[0].id, "e1");
+  assert.equal(result.gatherings[0].claimId, "ali");
 });
 
 test("claiming a person remaps every expense onto me so UI can say تو", () => {
@@ -104,6 +106,8 @@ test("من توی این لیست نیستم keeps everyone and adds me", () => 
   assert.ok(result.gatherings[0].memberIds.includes("ali"));
   assert.equal(result.people.filter((p) => p.id === "ali").length, 1);
   assert.equal(result.profile.name, "مریم");
+  assert.ok(result.gatherings[0].claimId);
+  assert.notEqual(result.gatherings[0].claimId, "new");
 });
 
 test("opening the same invite twice does not duplicate the gathering", () => {
@@ -168,4 +172,75 @@ test("pack encode/decode roundtrip keeps members and expenses", () => {
   assert.ok(!back?.people.some((p) => p.isMe || p.id === "me"));
   assert.equal(back?.expenses[0].title, "قهوه");
   assert.equal(back?.gathering.sourceId, "g-abc");
+});
+
+test("packFromState uses claimId so two devices share the same canonical me", () => {
+  const gathering: Gathering = {
+    id: "g-local-xyz",
+    sourceId: "g-north",
+    claimId: "ali",
+    name: "سفر شمال",
+    cover: "/covers/north.jpg",
+    memberIds: ["me", "sara"],
+    currency: "IRT",
+    createdAt: 1,
+    syncId: "AbCdEfGhIjKlMnOpQrStUv",
+  };
+  const packed = packFromState(
+    gathering,
+    [
+      me,
+      { id: "sara", name: "سارا", avatar: "/avatars/sara.jpg", color: "person-2" },
+    ],
+    [
+      {
+        id: "e1",
+        gatheringId: "g-local-xyz",
+        title: "شام",
+        amount: 1,
+        category: "food",
+        payerId: "me",
+        participantIds: ["me", "sara"],
+        split: "equal",
+        date: 1,
+        createdAt: 1,
+      },
+    ],
+  );
+  assert.equal(packed.gathering.syncId, "AbCdEfGhIjKlMnOpQrStUv");
+  assert.ok(packed.people.some((p) => p.id === "ali"));
+  assert.ok(!packed.people.some((p) => p.id === "me"));
+  assert.equal(packed.expenses[0].payerId, "ali");
+  const back = decodePack(encodePack(packed));
+  assert.equal(back?.gathering.syncId, "AbCdEfGhIjKlMnOpQrStUv");
+});
+
+test("applyRemote remaps canonical claimId back to me and keeps new expenses", () => {
+  const joined = applyJoin(emptyState(), pack, "ali");
+  assert.ok(!("alreadyId" in joined));
+  if ("alreadyId" in joined) return;
+  const next: SharePack = {
+    ...pack,
+    expenses: [
+      ...pack.expenses,
+      {
+        id: "e2",
+        gatheringId: "g-north",
+        title: "تاکسی",
+        amount: 80_000,
+        category: "transport",
+        payerId: "sara",
+        participantIds: ["h-host", "ali", "sara"],
+        split: "equal",
+        date: 2,
+        createdAt: 2,
+      },
+    ],
+  };
+  const remote = applyRemote(joined, joined.gatheringId, next);
+  assert.equal(remote.expenses.length, 2);
+  assert.ok(remote.expenses.some((e) => e.id === "e2"));
+  const taxi = remote.expenses.find((e) => e.id === "e2")!;
+  assert.ok(taxi.participantIds.includes("me"));
+  assert.ok(!taxi.participantIds.includes("ali"));
 });

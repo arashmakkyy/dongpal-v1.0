@@ -1,13 +1,15 @@
 import { CategoryIcon } from "@/components/category-icon";
+import { SyncPill } from "@/components/gathering-sync";
 import { AvatarStack, PersonAvatar, youName } from "@/components/person";
 import { AppScreen, TopBar } from "@/components/shell";
 import { Sheet } from "@/components/sheet";
 import { Button } from "@/components/ui/button";
 import { currencyLabel, formatMoney, formatWhen } from "@/lib/format";
-import { encodePack, joinUrl, packFromState } from "@/lib/pack";
+import { inviteUrl } from "@/lib/pack";
 import { copyText, nativeShare, tgLink, waLink } from "@/lib/share";
 import { equalPercents, gatheringTotal } from "@/lib/settle";
 import { makeDraft, useDang } from "@/lib/store";
+import { ensureGatheringRoom, useSyncStatus } from "@/lib/sync";
 import type { Currency, Expense, Person } from "@/lib/types";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import {
@@ -32,6 +34,7 @@ export function GatheringScreen() {
   const people = useDang((s) => s.people);
   const setDraft = useDang((s) => s.setDraft);
   const deleteGathering = useDang((s) => s.deleteGathering);
+  const syncStatus = useSyncStatus();
   const [menu, setMenu] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const expenses = allExpenses
@@ -52,7 +55,7 @@ export function GatheringScreen() {
     .filter((p): p is Person => !!p);
   const total = gatheringTotal(expenses);
   const me = people.find((p) => p.isMe) ?? people[0];
-  const shareLink = joinUrl(encodePack(packFromState(gathering, people, expenses)));
+  const shareLink = inviteUrl(gathering, people, expenses);
   const shareText = `بیا تو دورهمی «${gathering.name}» توی دنگ‌پال. لینک دعوت:\n${shareLink}`;
 
   function startAdd() {
@@ -125,6 +128,7 @@ export function GatheringScreen() {
           unit={currencyLabel(gathering.currency)}
           members={members}
           expenseCount={expenses.length}
+          sync={<SyncPill status={syncStatus} />}
         />
 
         <div className="mt-4 grid grid-cols-3 gap-2">
@@ -229,14 +233,22 @@ export function GatheringScreen() {
 
       <Sheet open={shareOpen} onClose={() => setShareOpen(false)} title="دعوت به دورهمی">
         <p className="mb-4 text-sm text-muted">
-          لینک را برای دوستت بفرست. وقتی باز کند ازش می‌پرسیم کدوم عضو است تا سهم‌ها به‌اسم «تو» دیده شود.
+          لینک را برای دوستت بفرست. وقتی باز کند ازش می‌پرسیم کدوم عضو است تا سهم‌ها به‌اسم «تو» دیده شود. بعد از ورود، هزینه‌ها لحظه‌ای برای هر دو طرف آپدیت می‌شود.
         </p>
         <Button
           block
           onClick={async () => {
-            const ok = await nativeShare(gathering.name, shareText, shareLink);
+            try {
+              await ensureGatheringRoom(gathering.id);
+            } catch {
+              /* still share a snapshot link */
+            }
+            const latest = useDang.getState().gatherings.find((g) => g.id === gathering.id);
+            const link = inviteUrl(latest || gathering, people, expenses);
+            const text = `بیا تو دورهمی «${gathering.name}» توی دنگ‌پال. لینک دعوت:\n${link}`;
+            const ok = await nativeShare(gathering.name, text, link);
             if (!ok) {
-              await copyText(shareLink);
+              await copyText(link);
               toast.success("لینک کپی شد");
             }
           }}
@@ -249,7 +261,14 @@ export function GatheringScreen() {
           block
           className="mt-2"
           onClick={async () => {
-            await copyText(shareLink);
+            try {
+              await ensureGatheringRoom(gathering.id);
+            } catch {
+              /* still share a snapshot link */
+            }
+            const latest = useDang.getState().gatherings.find((g) => g.id === gathering.id);
+            const link = inviteUrl(latest || gathering, people, expenses);
+            await copyText(link);
             toast.success("لینک کپی شد");
           }}
         >
@@ -285,12 +304,14 @@ function GatheringHero({
   unit,
   members,
   expenseCount,
+  sync,
 }: {
   cover: string;
   total: number;
   unit: string;
   members: Person[];
   expenseCount: number;
+  sync?: ReactNode;
 }) {
   return (
     <section className="overflow-hidden rounded-[28px] bg-surface shadow-card">
@@ -322,6 +343,7 @@ function GatheringHero({
               {unit}
             </span>
           </div>
+          {sync ? <div className="mt-2">{sync}</div> : null}
         </div>
         <AvatarStack people={members} max={6} size={32} />
       </div>

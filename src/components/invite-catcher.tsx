@@ -1,7 +1,10 @@
 import {
   decodePack,
+  peekSyncId,
   readInviteFromLocation,
+  readSyncIdFromLocation,
   stashInvite,
+  stashSyncId,
 } from "@/lib/pack";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
@@ -14,6 +17,12 @@ export function InviteCatcher() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (pathname !== "/" && pathname !== "/welcome") return;
+    const syncId = readSyncIdFromLocation() || peekSyncId();
+    if (syncId) {
+      stashSyncId(syncId);
+      navigate({ to: "/join", search: { s: syncId } });
+      return;
+    }
     const raw = readInviteFromLocation();
     if (!raw) return;
     if (!decodePack(raw)) return;

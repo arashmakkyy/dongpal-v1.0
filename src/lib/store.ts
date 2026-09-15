@@ -12,8 +12,8 @@ import type {
 import { PERSON_COLORS } from "./types";
 import { emptyNow, seedNow } from "./seed";
 import { uid } from "./utils";
-import { applyJoin, type JoinExtras } from "./join";
-import type { SharePack } from "./pack";
+import { applyJoin, applyRemote, type JoinExtras } from "./join";
+import { canonicalMeId, type SharePack } from "./pack";
 
 type DraftExpense = {
   gatheringId: string;
@@ -58,6 +58,7 @@ type State = {
     claimId: string | "new",
     extras?: JoinExtras,
   ) => string;
+  applyRemoteSnapshot: (gatheringId: string, pack: SharePack) => void;
 };
 
 function nextColor(people: Person[]): PersonColor {
@@ -126,12 +127,15 @@ export const useDang = create<State>()(
       },
       addGathering: (g) => {
         const id = uid("g-");
+        const sourceId = g.sourceId || id;
         const gathering: Gathering = {
           ...g,
           id,
-          sourceId: g.sourceId || id,
+          sourceId,
+          claimId: g.claimId || canonicalMeId({ id, sourceId }),
           createdAt: Date.now(),
           memberIds: g.memberIds.length ? g.memberIds : ["me"],
+          tombstones: g.tombstones || [],
         };
         set({ gatherings: [gathering, ...get().gatherings] });
         return id;
@@ -149,18 +153,33 @@ export const useDang = create<State>()(
         }),
       addExpense: (e) => {
         const id = uid("e-");
-        const expense: Expense = { ...e, id, createdAt: Date.now() };
+        const now = Date.now();
+        const expense: Expense = { ...e, id, createdAt: now, updatedAt: now };
         set({ expenses: [expense, ...get().expenses] });
         return id;
       },
       updateExpense: (id, patch) =>
         set({
           expenses: get().expenses.map((e) =>
-            e.id === id ? { ...e, ...patch } : e,
+            e.id === id ? { ...e, ...patch, updatedAt: Date.now() } : e,
           ),
         }),
-      deleteExpense: (id) =>
-        set({ expenses: get().expenses.filter((e) => e.id !== id) }),
+      deleteExpense: (id) => {
+        const expense = get().expenses.find((e) => e.id === id);
+        set({
+          expenses: get().expenses.filter((e) => e.id !== id),
+          gatherings: expense
+            ? get().gatherings.map((g) =>
+                g.id === expense.gatheringId
+                  ? {
+                      ...g,
+                      tombstones: [...(g.tombstones || []), id].slice(-200),
+                    }
+                  : g,
+              )
+            : get().gatherings,
+        });
+      },
       setDraft: (d) => set({ draft: d }),
       patchDraft: (p) => {
         const d = get().draft;
@@ -212,7 +231,21 @@ export const useDang = create<State>()(
           claimId,
           extras,
         );
-        if ("alreadyId" in result) return result.alreadyId;
+        if ("alreadyId" in result) {
+          if (payload.gathering.syncId) {
+            const current = get().gatherings.find((g) => g.id === result.alreadyId);
+            if (current && !current.syncId) {
+              set({
+                gatherings: get().gatherings.map((g) =>
+                  g.id === result.alreadyId
+                    ? { ...g, syncId: payload.gathering.syncId }
+                    : g,
+                ),
+              });
+            }
+          }
+          return result.alreadyId;
+        }
         set({
           people: result.people,
           gatherings: result.gatherings,
@@ -223,6 +256,23 @@ export const useDang = create<State>()(
       },
       importGathering: (payload) => {
         return get().joinGathering(payload, "new");
+      },
+      applyRemoteSnapshot: (gatheringId, pack) => {
+        const result = applyRemote(
+          {
+            people: get().people,
+            gatherings: get().gatherings,
+            expenses: get().expenses,
+            profile: get().profile,
+          },
+          gatheringId,
+          pack,
+        );
+        set({
+          people: result.people,
+          gatherings: result.gatherings,
+          expenses: result.expenses,
+        });
       },
     }),
     {
