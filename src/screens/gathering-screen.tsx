@@ -9,7 +9,7 @@ import { inviteUrl } from "@/lib/pack";
 import { copyText, nativeShare, tgLink, waLink } from "@/lib/share";
 import { equalPercents, gatheringTotal } from "@/lib/settle";
 import { makeDraft, useDang } from "@/lib/store";
-import { ensureGatheringRoom, useSyncStatus } from "@/lib/sync";
+import { ensureGatheringRoom, flushGathering, useSyncStatus } from "@/lib/sync";
 import type { Currency, Expense, Person } from "@/lib/types";
 import { useNavigate, useParams } from "@tanstack/react-router";
 import {
@@ -104,7 +104,10 @@ export function GatheringScreen() {
             <button
               type="button"
               className="flex size-11 items-center justify-center"
-              onClick={() => setShareOpen(true)}
+              onClick={() => {
+                setShareOpen(true);
+                void flushGathering(gathering.id);
+              }}
               aria-label="دعوت دوست"
             >
               <Share2 className="size-5 text-muted" />
@@ -202,6 +205,7 @@ export function GatheringScreen() {
           onClick={() => {
             setMenu(false);
             setShareOpen(true);
+            void flushGathering(gathering.id);
           }}
         >
           <Share2 className="size-4 text-muted" />
@@ -240,6 +244,7 @@ export function GatheringScreen() {
           onClick={async () => {
             try {
               await ensureGatheringRoom(gathering.id);
+              await flushGathering(gathering.id);
             } catch {
               /* still share a snapshot link */
             }
@@ -263,6 +268,7 @@ export function GatheringScreen() {
           onClick={async () => {
             try {
               await ensureGatheringRoom(gathering.id);
+              await flushGathering(gathering.id);
             } catch {
               /* still share a snapshot link */
             }

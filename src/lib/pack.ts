@@ -19,6 +19,14 @@ const SYNC_KEY = "dangpal-invite-s";
 
 export const ROOM_ID_RE = /^[A-Za-z0-9_-]{16,48}$/;
 
+export function newSyncId() {
+  const bytes = new Uint8Array(18);
+  crypto.getRandomValues(bytes);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
 type CompactV2 = {
   v: 2;
   g: [string, string, string, Currency, string[], number];

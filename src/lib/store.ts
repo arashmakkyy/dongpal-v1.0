@@ -13,7 +13,7 @@ import { PERSON_COLORS } from "./types";
 import { emptyNow, seedNow } from "./seed";
 import { uid } from "./utils";
 import { applyJoin, applyRemote, type JoinExtras } from "./join";
-import { canonicalMeId, type SharePack } from "./pack";
+import { canonicalMeId, newSyncId, type SharePack } from "./pack";
 
 type DraftExpense = {
   gatheringId: string;
@@ -136,6 +136,7 @@ export const useDang = create<State>()(
           createdAt: Date.now(),
           memberIds: g.memberIds.length ? g.memberIds : ["me"],
           tombstones: g.tombstones || [],
+          syncId: g.syncId || newSyncId(),
         };
         set({ gatherings: [gathering, ...get().gatherings] });
         return id;
