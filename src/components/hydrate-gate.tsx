@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { HeartMark } from "./shell";
 import { useDang } from "@/lib/store";
+import { startSyncEngine } from "@/lib/sync";
 
 export function HydrateGate({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -16,6 +17,11 @@ export function HydrateGate({ children }: { children: ReactNode }) {
     }
     return useDang.persist.onFinishHydration(finish);
   }, []);
+
+  useEffect(() => {
+    if (!ready) return;
+    return startSyncEngine();
+  }, [ready]);
 
   if (!ready) return <Splash />;
   return (

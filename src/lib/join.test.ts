@@ -244,3 +244,72 @@ test("applyRemote remaps canonical claimId back to me and keeps new expenses", (
   assert.ok(taxi.participantIds.includes("me"));
   assert.ok(!taxi.participantIds.includes("ali"));
 });
+
+test("host sees a brand-new joiner and their expense after applyRemote", () => {
+  const hostGathering: Gathering = {
+    id: "g-host",
+    sourceId: "g-north",
+    claimId: "h-host",
+    name: "سفر شمال",
+    cover: "/covers/north.jpg",
+    memberIds: ["me", "ali", "sara"],
+    currency: "IRT",
+    createdAt: 1,
+    syncId: "AbCdEfGhIjKlMnOpQrStUv",
+  };
+  const hostState = {
+    people: [
+      me,
+      { id: "ali", name: "علی", avatar: "/avatars/ali.jpg", color: "person-1" as const },
+      { id: "sara", name: "سارا", avatar: "/avatars/sara.jpg", color: "person-2" as const },
+    ],
+    gatherings: [hostGathering],
+    expenses: [
+      {
+        ...pack.expenses[0],
+        gatheringId: "g-host",
+        payerId: "ali",
+        participantIds: ["me", "ali", "sara"],
+      },
+    ],
+    profile: { ...emptyProfile, name: "نیکی", seenWelcome: true },
+  };
+  const joinerPack: SharePack = {
+    ...pack,
+    gathering: {
+      ...pack.gathering,
+      memberIds: ["p-mary", "h-host", "ali", "sara"],
+      syncId: "AbCdEfGhIjKlMnOpQrStUv",
+    },
+    people: [
+      ...pack.people,
+      { id: "p-mary", name: "مریم", avatar: "", color: "person-3" },
+    ],
+    expenses: [
+      {
+        ...pack.expenses[0],
+        participantIds: ["h-host", "ali", "sara", "p-mary"],
+      },
+      {
+        id: "e-pizza",
+        gatheringId: "g-north",
+        title: "پیتزا",
+        amount: 450_000,
+        category: "food",
+        payerId: "p-mary",
+        participantIds: ["p-mary", "h-host", "ali", "sara"],
+        split: "equal",
+        date: 9,
+        createdAt: 9,
+      },
+    ],
+  };
+  const next = applyRemote(hostState, "g-host", joinerPack);
+  assert.ok(next.people.some((p) => p.id === "p-mary" && p.name === "مریم"));
+  assert.ok(next.gatherings[0].memberIds.includes("p-mary"));
+  assert.ok(next.gatherings[0].memberIds.includes("me"));
+  const pizza = next.expenses.find((e) => e.id === "e-pizza");
+  assert.ok(pizza);
+  assert.equal(pizza?.payerId, "p-mary");
+  assert.ok(pizza?.participantIds.includes("me"));
+});

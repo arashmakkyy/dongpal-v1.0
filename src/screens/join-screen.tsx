@@ -17,7 +17,7 @@ import {
 } from "@/lib/pack";
 import { gatheringTotal } from "@/lib/settle";
 import { useDang } from "@/lib/store";
-import { fetchRoomPack } from "@/lib/sync";
+import { fetchRoomPack, flushGathering } from "@/lib/sync";
 import { cn } from "@/lib/utils";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ArrowLeft, UserPlus } from "lucide-react";
@@ -122,7 +122,7 @@ export function JoinScreen() {
   const unit = currencyLabel(pack.gathering.currency);
   const cover = pack.gathering.cover || "/covers/cafe.jpg";
 
-  function confirm() {
+  async function confirm() {
     if (!pack || pack === "wait") return;
     if (!already && !picked) return;
     if (picked === "new" && !name.trim()) {
@@ -140,6 +140,11 @@ export function JoinScreen() {
         );
     clearInvite();
     setLeaving(true);
+    try {
+      await flushGathering(id);
+    } catch {
+      /* offline — local copy still works */
+    }
     toast.success("دورهمی به لیستت اضافه شد");
     void navigate({ to: "/g/$id", params: { id }, replace: true });
   }

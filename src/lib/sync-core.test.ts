@@ -95,3 +95,33 @@ test("merge prefers the newer edit of the same expense", () => {
   const { pack } = mergePacks(remote, local);
   assert.equal(pack.expenses[0].amount, 250);
 });
+
+test("merge keeps a brand-new member and their expense from the joiner", () => {
+  const local: SharePack = {
+    ...base,
+    gathering: { ...base.gathering, memberIds: ["h-host", "ali", "p-mary"] },
+    people: [
+      ...base.people,
+      { id: "p-mary", name: "مریم", avatar: "", color: "person-3" },
+    ],
+    expenses: [
+      ...base.expenses,
+      {
+        id: "e-pizza",
+        gatheringId: "g-north",
+        title: "پیتزا",
+        amount: 450_000,
+        category: "food",
+        payerId: "p-mary",
+        participantIds: ["p-mary", "h-host", "ali"],
+        split: "equal",
+        date: 4,
+        createdAt: 4,
+      },
+    ],
+  };
+  const { pack } = mergePacks(base, local);
+  assert.ok(pack.people.some((p) => p.id === "p-mary" && p.name === "مریم"));
+  assert.ok(pack.gathering.memberIds.includes("p-mary"));
+  assert.ok(pack.expenses.some((e) => e.id === "e-pizza" && e.payerId === "p-mary"));
+});

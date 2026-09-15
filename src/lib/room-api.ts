@@ -60,7 +60,7 @@ export const createRoom = createServerFn({ method: "POST" })
     return { ok: true, id, rev: 1 };
   });
 
-export const pullRoom = createServerFn({ method: "GET" })
+export const pullRoom = createServerFn({ method: "POST" })
   .validator((d: { id: string }) => ({ id: assertRoomId(d?.id) }))
   .handler(async ({ data }): Promise<PullOk | PullMiss> => {
     const { getSql } = await import("@/lib/db");
