@@ -1,7 +1,7 @@
 import { n as __exportAll } from "../_runtime.mjs";
-import { A as getStylesheetHref, B as parseRedirect, F as invariant, H as rootRouteId, M as resolveManifestCssLink, N as _getRenderedMatches, P as executeRewriteInput, R as isRedirect, U as isNotFound, W as require_react, a as isSsrResponse, c as stripSsrResponseBody, i as disposeSsrResponseDetached, j as resolveManifestAssetLink, k as getScriptPreloadAttrs, n as bindSsrResponseToRequest, o as normalizeSsrResponse, p as RouterProvider, r as defineHandlerCallback, s as replaceSsrResponse, t as renderRouterToStream, w as require_jsx_runtime, z as isResolvedRedirect } from "../_libs/@tanstack/react-router+[...].mjs";
-import { n as createMemoryHistory } from "../_libs/tanstack__history.mjs";
-import { a as getOrigin, c as createSerializationAdapter, d as toCrossJSONAsync, f as toCrossJSONStream, i as getNormalizedURL, l as makeSerovalPlugin, n as mergeHeaders, o as defaultSerovalPlugins, r as attachRouterServerSsrUtils, s as createRawStreamRPCPlugin, t as waitForRequest, u as fromJSON } from "../_libs/@tanstack/router-core+[...].mjs";
+import { C as isNotFound, S as rootRouteId, a as isSsrResponse, b as parseRedirect, c as stripSsrResponseBody, d as require_jsx_runtime, h as executeRewriteInput, i as disposeSsrResponseDetached, m as _getRenderedMatches, n as bindSsrResponseToRequest, o as normalizeSsrResponse, r as defineHandlerCallback, s as replaceSsrResponse, t as renderRouterToStream, u as RouterProvider, v as isRedirect, w as require_react, y as isResolvedRedirect } from "../_libs/@tanstack/react-router+[...].mjs";
+import { _ as invariant, a as getOrigin, c as createSerializationAdapter, d as toCrossJSONAsync, f as toCrossJSONStream, g as resolveManifestCssLink, h as resolveManifestAssetLink, i as getNormalizedURL, l as makeSerovalPlugin, m as getStylesheetHref, n as mergeHeaders, o as defaultSerovalPlugins, p as getScriptPreloadAttrs, r as attachRouterServerSsrUtils, s as createRawStreamRPCPlugin, t as waitForRequest, u as fromJSON } from "../_libs/@tanstack/router-core+[...].mjs";
+import { t as createMemoryHistory } from "../_libs/tanstack__history.mjs";
 import { n as toResponse, t as H3Event } from "../_libs/h3-v2+rou3.mjs";
 import { AsyncLocalStorage } from "node:async_hooks";
 //#region node_modules/.nitro/vite/services/ssr/index.js
@@ -87,7 +87,7 @@ var HEADERS = { TSS_SHELL: "X-TSS_SHELL" };
 * the dev styles URL for route-scoped CSS collection.
 */
 async function getStartManifest(matchedRoutes) {
-	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-BTVmC-WX.mjs");
+	const { tsrStartManifest } = await import("../_tanstack-start-manifest_v-DjymxrOM.mjs");
 	const startManifest = tsrStartManifest();
 	let routes = startManifest.routes;
 	routes[rootRouteId];
@@ -1377,7 +1377,7 @@ var getBaseManifest = getProdBaseManifest;
 var createEarlyHintsForRequest = createEarlyHintsCollector;
 async function loadEntries() {
 	const [routerEntry, startEntry, pluginAdapters] = await Promise.all([
-		import("./router-DVGuM8Ia.mjs").then((n) => n.t),
+		import("./router-C45VCbmG.mjs").then((n) => n.t),
 		import("./start-5Z2QO8AU.mjs"),
 		import("./empty-plugin-adapters-D9UWiqvJ.mjs")
 	]);
