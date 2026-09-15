@@ -10,8 +10,10 @@ import type {
   Profile,
 } from "./types";
 import { PERSON_COLORS } from "./types";
-import { seedNow } from "./seed";
+import { emptyNow, seedNow } from "./seed";
 import { uid } from "./utils";
+import { applyJoin, type JoinExtras } from "./join";
+import type { SharePack } from "./pack";
 
 type DraftExpense = {
   gatheringId: string;
@@ -50,18 +52,11 @@ type State = {
   patchDraft: (p: Partial<DraftExpense>) => void;
   resetDemo: () => void;
   startFresh: () => void;
-  importGathering: (payload: {
-    gathering: Gathering;
-    people: Person[];
-    expenses: Expense[];
-  }) => string;
+  importGathering: (payload: SharePack) => string;
   joinGathering: (
-    payload: {
-      gathering: Gathering;
-      people: Person[];
-      expenses: Expense[];
-    },
+    payload: SharePack,
     claimId: string | "new",
+    extras?: JoinExtras,
   ) => string;
 };
 
@@ -69,30 +64,16 @@ function nextColor(people: Person[]): PersonColor {
   return PERSON_COLORS[people.length % PERSON_COLORS.length];
 }
 
-function remapExpense(e: Expense, from: string, to: string): Expense {
-  const shares = e.shares
-    ? Object.fromEntries(
-        Object.entries(e.shares).map(([k, v]) => [k === from ? to : k, v]),
-      )
-    : e.shares;
-  return {
-    ...e,
-    payerId: e.payerId === from ? to : e.payerId,
-    participantIds: e.participantIds.map((id) => (id === from ? to : id)),
-    shares,
-  };
-}
-
-const seeded = seedNow();
+const fresh = emptyNow();
 
 export const useDang = create<State>()(
   persist(
     (set, get) => ({
       hydrated: false,
-      people: seeded.people,
-      gatherings: seeded.gatherings,
-      expenses: seeded.expenses,
-      profile: seeded.profile,
+      people: fresh.people,
+      gatherings: fresh.gatherings,
+      expenses: fresh.expenses,
+      profile: fresh.profile,
       draft: null,
       setHydrated: () => {
         if (get().hydrated) return;
@@ -148,6 +129,7 @@ export const useDang = create<State>()(
         const gathering: Gathering = {
           ...g,
           id,
+          sourceId: g.sourceId || id,
           createdAt: Date.now(),
           memberIds: g.memberIds.length ? g.memberIds : ["me"],
         };
@@ -196,75 +178,51 @@ export const useDang = create<State>()(
         });
       },
       startFresh: () => {
-        const me: Person = {
-          id: "me",
+        const blank = emptyNow();
+        const profile = {
+          ...blank.profile,
           name: get().profile.name || "من",
-          avatar: get().profile.avatar,
-          color: "person-5",
-          isMe: true,
+          avatar: get().profile.avatar || "",
+          defaultCurrency: get().profile.defaultCurrency,
+          seenWelcome: false,
         };
         set({
-          people: [me],
+          people: [
+            {
+              ...blank.people[0],
+              name: profile.name,
+              avatar: profile.avatar,
+            },
+          ],
           gatherings: [],
           expenses: [],
           draft: null,
-          profile: { ...get().profile, seenWelcome: false },
+          profile,
         });
       },
-      joinGathering: (payload, claimId) => {
-        const sourceId = payload.gathering.sourceId || payload.gathering.id;
-        const already = get().gatherings.find(
-          (g) => g.sourceId === sourceId || g.id === sourceId,
+      joinGathering: (payload, claimId, extras) => {
+        const result = applyJoin(
+          {
+            people: get().people,
+            gatherings: get().gatherings,
+            expenses: get().expenses,
+            profile: get().profile,
+          },
+          payload,
+          claimId,
+          extras,
         );
-        if (already) return already.id;
-
-        const me = get().people.find((p) => p.isMe);
-        const meId = me?.id ?? "me";
-        const newId = uid("g-");
-
-        let memberIds = [...payload.gathering.memberIds];
-        let expenses: Expense[] = payload.expenses.map((e) => {
-          const { receiptImage: _r, ...rest } = e;
-          return {
-            ...rest,
-            id: uid("e-"),
-            gatheringId: newId,
-          };
-        });
-        let incoming = payload.people.filter((p) => p.id !== meId);
-
-        if (claimId !== "new") {
-          memberIds = memberIds.map((id) => (id === claimId ? meId : id));
-          expenses = expenses.map((e) => remapExpense(e, claimId, meId));
-          incoming = incoming.filter((p) => p.id !== claimId);
-        } else if (!memberIds.includes(meId)) {
-          memberIds = [meId, ...memberIds];
-        }
-
-        const existingIds = new Set(get().people.map((p) => p.id));
-        const extra = incoming
-          .filter((p) => !existingIds.has(p.id))
-          .map(({ isMe: _ignored, ...p }) => p);
-
-        const gathering: Gathering = {
-          ...payload.gathering,
-          id: newId,
-          sourceId,
-          memberIds: [...new Set(memberIds)],
-          createdAt: Date.now(),
-          archived: false,
-        };
-
+        if ("alreadyId" in result) return result.alreadyId;
         set({
-          people: [...get().people, ...extra],
-          gatherings: [gathering, ...get().gatherings],
-          expenses: [...expenses, ...get().expenses],
-          profile: { ...get().profile, seenWelcome: true },
+          people: result.people,
+          gatherings: result.gatherings,
+          expenses: result.expenses,
+          profile: result.profile,
         });
-        return newId;
+        return result.gatheringId;
       },
-      importGathering: ({ gathering, people, expenses }) => {
-        return get().joinGathering({ gathering, people, expenses }, "new");
+      importGathering: (payload) => {
+        return get().joinGathering(payload, "new");
       },
     }),
     {

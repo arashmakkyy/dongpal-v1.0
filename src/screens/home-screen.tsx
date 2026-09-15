@@ -8,6 +8,7 @@ import type { Gathering, Person } from "@/lib/types";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, Plus, ScanLine, Settings, Sparkles } from "lucide-react";
 import { WelcomeScreen } from "./welcome-screen";
+import { decodePack, readInviteFromLocation } from "@/lib/pack";
 
 export function HomeScreen() {
   const navigate = useNavigate();
@@ -16,6 +17,11 @@ export function HomeScreen() {
   const people = useDang((s) => s.people);
   const seen = useDang((s) => s.profile.seenWelcome);
   const gatherings = allGatherings.filter((g) => !g.archived);
+
+  if (typeof window !== "undefined") {
+    const raw = readInviteFromLocation();
+    if (raw && decodePack(raw)) return null;
+  }
 
   if (!seen) return <WelcomeScreen />;
 

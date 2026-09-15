@@ -266,7 +266,7 @@ export function GatheringScreen() {
             واتساپ
           </a>
           <a
-            href={tgLink(shareText)}
+            href={tgLink(shareText, shareLink)}
             target="_blank"
             rel="noreferrer"
             className="flex h-11 items-center justify-center rounded-2xl bg-[#E7F3FE] text-sm font-bold text-[#2A9EDC]"

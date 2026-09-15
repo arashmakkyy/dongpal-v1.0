@@ -2,6 +2,7 @@ import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-r
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { HydrateGate } from "@/components/hydrate-gate";
+import { InviteCatcher } from "@/components/invite-catcher";
 import { Toaster } from "sonner";
 import appCss from "../styles.css?url";
 
@@ -51,6 +52,7 @@ function Root() {
               className="relative flex h-dvh w-full max-w-[430px] flex-col overflow-hidden bg-bg shadow-float md:h-[860px] md:rounded-[32px]"
             >
               <HydrateGate>
+                <InviteCatcher />
                 <Outlet />
               </HydrateGate>
             </div>

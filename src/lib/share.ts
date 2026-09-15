@@ -89,8 +89,9 @@ export function waLink(text: string) {
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
 
-export function tgLink(text: string) {
-  return `https://t.me/share/url?url=${encodeURIComponent("https://dangpal.app")}&text=${encodeURIComponent(text)}`;
+export function tgLink(text: string, url?: string) {
+  const shareUrl = url || "";
+  return `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(text)}`;
 }
 
 export function smsLink(text: string) {
@@ -101,6 +102,20 @@ export function baleLink(text: string) {
   return `https://ble.ir/share?text=${encodeURIComponent(text)}`;
 }
 
-export function copyText(text: string): Promise<void> {
-  return navigator.clipboard.writeText(text);
+export async function copyText(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch {
+    /* incognito / permission */
+  }
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.insetInlineStart = "-9999px";
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  document.body.removeChild(ta);
 }

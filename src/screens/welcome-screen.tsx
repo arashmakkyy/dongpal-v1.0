@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { HeartMark } from "@/components/shell";
 import { Sheet } from "@/components/sheet";
 import { AvatarPicker } from "@/components/avatar-picker";
+import { decodePack, peekInvite } from "@/lib/pack";
 import { useDang } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "@tanstack/react-router";
@@ -19,6 +20,11 @@ export function WelcomeScreen() {
 
   function goHome() {
     setSeen();
+    const raw = peekInvite();
+    if (raw && decodePack(raw)) {
+      navigate({ to: "/join" });
+      return;
+    }
     navigate({ to: "/" });
   }
 

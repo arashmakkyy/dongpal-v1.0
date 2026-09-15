@@ -289,3 +289,31 @@ export function seedNow(now = Date.now()) {
 
   return { people, gatherings, expenses, profile };
 }
+
+export function emptyNow(): {
+  people: Person[];
+  gatherings: Gathering[];
+  expenses: Expense[];
+  profile: Profile;
+} {
+  return {
+    people: [
+      {
+        id: "me",
+        name: "من",
+        avatar: "",
+        color: "person-5",
+        isMe: true,
+      },
+    ],
+    gatherings: [],
+    expenses: [],
+    profile: {
+      name: "من",
+      avatar: "",
+      defaultCurrency: "IRT",
+      seenWelcome: false,
+    },
+  };
+}
+
