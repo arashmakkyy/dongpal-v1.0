@@ -1,4 +1,57 @@
-import { A as getStylesheetHref, D as createInlineCssPlaceholderAsset, E as TSR_SCRIPT_BARRIER_ID, F as invariant, H as rootRouteId, I as createSieveCache, L as dehydrateSsrMatchId, N as _getRenderedMatches, O as createInlineCssStyleAsset, T as GLOBAL_TSR, V as decodePath } from "./react-router+[...].mjs";
+import { S as rootRouteId, _ as dehydrateSsrMatchId, f as GLOBAL_TSR, g as createSieveCache, m as _getRenderedMatches, p as TSR_SCRIPT_BARRIER_ID, x as decodePath } from "./react-router+[...].mjs";
+//#region node_modules/@tanstack/router-core/dist/esm/invariant.js
+function invariant() {
+	throw new Error("Invariant failed");
+}
+//#endregion
+//#region node_modules/@tanstack/router-core/dist/esm/manifest.js
+function getAssetCrossOrigin(assetCrossOrigin, kind) {
+	if (!assetCrossOrigin) return;
+	if (typeof assetCrossOrigin === "string") return assetCrossOrigin;
+	return assetCrossOrigin[kind];
+}
+function getManifestScriptFormat(manifest) {
+	return manifest?.scriptFormat ?? "module";
+}
+function getScriptPreloadAttrs(manifest, link, assetCrossOrigin) {
+	const preloadLink = resolveManifestAssetLink(link);
+	const crossOrigin = getAssetCrossOrigin(assetCrossOrigin, "script") ?? preloadLink.crossOrigin;
+	return {
+		...getManifestScriptFormat(manifest) === "iife" ? {
+			rel: "preload",
+			as: "script"
+		} : { rel: "modulepreload" },
+		href: preloadLink.href,
+		...crossOrigin ? { crossOrigin } : {}
+	};
+}
+function resolveManifestAssetLink(link) {
+	if (typeof link === "string") return {
+		href: link,
+		crossOrigin: void 0
+	};
+	return link;
+}
+function getStylesheetHref(asset) {
+	return resolveManifestCssLink(asset).href;
+}
+function resolveManifestCssLink(link) {
+	if (typeof link === "string") return {
+		href: link,
+		crossOrigin: void 0
+	};
+	return link;
+}
+function createInlineCssStyleAsset(css) {
+	return {
+		attrs: { suppressHydrationWarning: true },
+		children: css
+	};
+}
+function createInlineCssPlaceholderAsset() {
+	return { attrs: { suppressHydrationWarning: true } };
+}
+//#endregion
 //#region node_modules/seroval/dist/index.js
 var SYM_ASYNC_ITERATOR = Symbol.asyncIterator;
 var SYM_HAS_INSTANCE = Symbol.hasInstance;
@@ -3638,4 +3691,4 @@ function waitForRequest(value, signal, onLate) {
 	});
 }
 //#endregion
-export { getOrigin as a, createSerializationAdapter as c, toCrossJSONAsync as d, toCrossJSONStream as f, getNormalizedURL as i, makeSerovalPlugin as l, mergeHeaders as n, defaultSerovalPlugins as o, attachRouterServerSsrUtils as r, createRawStreamRPCPlugin as s, waitForRequest as t, fromJSON as u };
+export { invariant as _, getOrigin as a, createSerializationAdapter as c, toCrossJSONAsync as d, toCrossJSONStream as f, resolveManifestCssLink as g, resolveManifestAssetLink as h, getNormalizedURL as i, makeSerovalPlugin as l, getStylesheetHref as m, mergeHeaders as n, defaultSerovalPlugins as o, getScriptPreloadAttrs as p, attachRouterServerSsrUtils as r, createRawStreamRPCPlugin as s, waitForRequest as t, fromJSON as u };

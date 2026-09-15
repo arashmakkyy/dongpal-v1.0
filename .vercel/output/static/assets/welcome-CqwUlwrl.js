@@ -1,1 +1,0 @@
-import{t as e}from"./welcome-screen-_1lI3dE-.js";var t=e;export{t as component};

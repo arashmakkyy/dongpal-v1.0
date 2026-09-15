@@ -145,7 +145,9 @@ function authPopupPlugin(): Plugin {
 // `0.0.0.0:8080` is the live-preview contract — don't change host/port.
 // The dev server starts once `src/router.tsx` and `src/routes/` exist — see
 // AGENTS.md § "First scaffold".
-export default defineConfig(({ command, isPreview }) => ({
+export default defineConfig(({ command, isPreview }) => {
+  return {
+  envPrefix: ["VITE_", "NEXT_PUBLIC_", "SUPABASE_"],
   server: {
     host: "0.0.0.0",
     port: 8080,
@@ -180,4 +182,5 @@ export default defineConfig(({ command, isPreview }) => ({
       : []),
     viteReact(),
   ],
-}));
+  };
+});
