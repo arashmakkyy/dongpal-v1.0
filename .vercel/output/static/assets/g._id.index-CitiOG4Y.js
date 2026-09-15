@@ -1,0 +1,1 @@
+import{n as e}from"./gathering-screen-CMJlt_fK.js";var t=e;export{t as component};
