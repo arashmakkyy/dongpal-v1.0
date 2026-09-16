@@ -106,11 +106,16 @@ async function flushNow(gatheringId: string) {
     if (!syncId) throw new Error("missing_sync_id");
     attachChannel(gatheringId, syncId);
     const remote = await readRoom(syncId);
+    const remotePayload = remote ? parseRow(remote) : null;
+    const remoteFp = remotePayload ? fingerprintPack(remotePayload.pack, remotePayload.tombstones) : null;
     if (remote) applyRemoteRow(gatheringId, remote);
     const payload = snapshotOf(gatheringId);
     if (!payload) return;
     const fp = fingerprintPack(payload.pack, payload.tombstones);
-    if (fp !== serverFp.get(gatheringId)) {
+    // A local member/expense may exist only on this device. Compare against
+    // the server row, not serverFp: applyRemoteRow merges first and updates
+    // serverFp, which previously caused the merged local change to be skipped.
+    if (fp !== remoteFp && fp !== serverFp.get(gatheringId)) {
       const saved = await writeRoom(syncId, payload);
       useDang.getState().updateGathering(gatheringId, { syncRev: saved.rev });
       serverFp.set(gatheringId, fp);
