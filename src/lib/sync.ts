@@ -14,6 +14,7 @@ const listeners = new Set<() => void>();
 const channels = new Map<string, ReturnType<typeof supabase.channel>>();
 const queues = new Map<string, Promise<void>>();
 let applying = false;
+const ignoredStoreFlushes = new Set<string>();
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let unsubStore: (() => void) | null = null;
 let started = false;
@@ -70,6 +71,8 @@ function applyRemoteRow(gatheringId: string, row: RoomRow) {
   if (!remote || !local) return;
   const remoteFp = fingerprintPack(remote.pack, remote.tombstones);
   const localFp = fingerprintPack(local.pack, local.tombstones);
+  ignoredStoreFlushes.add(gatheringId);
+  queueMicrotask(() => ignoredStoreFlushes.delete(gatheringId));
   if (remoteFp !== localFp) {
     const merged = mergePacks(remote.pack, local.pack, remote.tombstones, local.tombstones);
     applying = true;
@@ -123,7 +126,7 @@ export function startSyncEngine() {
   if (typeof window === "undefined" || started) return () => {};
   started = true;
   unsubStore = useDang.subscribe((s, prev) => {
-    if (applying || (s.people === prev.people && s.gatherings === prev.gatherings && s.expenses === prev.expenses)) return;
+    if (applying || ignoredStoreFlushes.size > 0 || (s.people === prev.people && s.gatherings === prev.gatherings && s.expenses === prev.expenses)) return;
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => { debounceTimer = null; flushDirty(); }, PUSH_DEBOUNCE_MS);
   });
