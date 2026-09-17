@@ -3,7 +3,7 @@ import { youName } from "@/components/person";
 import { TopBar } from "@/components/shell";
 import { Button } from "@/components/ui/button";
 import { currencyLabel, formatMoney, parseAmount } from "@/lib/format";
-import { equalPercents, allocate } from "@/lib/settle";
+import { equalPercents, allocate, gatheringTotal } from "@/lib/settle";
 import { makeDraft, useDang } from "@/lib/store";
 import type { Person } from "@/lib/types";
 import { useNavigate, useParams, useSearch } from "@tanstack/react-router";
@@ -17,11 +17,17 @@ export function SplitScreen() {
   const navigate = useNavigate();
   const gathering = useDang((s) => s.gatherings.find((g) => g.id === id));
   const people = useDang((s) => s.people);
+  const allExpenses = useDang((s) => s.expenses);
   const draft = useDang((s) => s.draft);
   const patchDraft = useDang((s) => s.patchDraft);
   const addExpense = useDang((s) => s.addExpense);
   const setDraft = useDang((s) => s.setDraft);
   const fromAdd = search.from === "add";
+
+  const total = useMemo(
+    () => gatheringTotal(allExpenses.filter((e) => e.gatheringId === id)),
+    [allExpenses, id],
+  );
 
   useEffect(() => {
     if (!gathering) return;
@@ -44,11 +50,13 @@ export function SplitScreen() {
         participantIds: gathering.memberIds,
       }),
       title: "تقسیم نابرابر",
-      amount: 0,
+      // Direct entry (tile flow): start from the gathering's total expenses.
+      // From the add-expense flow the amount belongs to the new expense, keep 0.
+      amount: fromAdd ? 0 : total,
       split: "unequal",
       shares: equalPercents(gathering.memberIds),
     });
-  }, [id, gathering, draft, people, patchDraft, setDraft]);
+  }, [id, gathering, draft, people, patchDraft, setDraft, fromAdd, total]);
 
   const members = useMemo(() => {
     if (!draft) return [];

@@ -83,7 +83,7 @@ export function GatheringScreen() {
         participantIds: gathering!.memberIds,
       }),
       title: "تقسیم نابرابر",
-      amount: 0,
+      amount: total,
       split: "unequal",
       shares: equalPercents(gathering!.memberIds),
     });
