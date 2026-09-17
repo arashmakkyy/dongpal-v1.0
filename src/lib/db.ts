@@ -3,12 +3,24 @@ import { pendingMigrations } from "../../scripts/migration-plan.mjs";
 /** Which database backend is active. */
 export type DbSource = "neon" | "pglite";
 
-// An empty/whitespace DATABASE_URL (an easy misconfig in deploy UIs) must mean
+// An empty/whitespace value (an easy misconfig in deploy UIs) must mean
 // "unset" — otherwise production would silently run on the PGLite fallback.
-const rawDatabaseUrl =
-  typeof process !== "undefined" ? process.env.DATABASE_URL : undefined;
-const databaseUrl =
-  rawDatabaseUrl && rawDatabaseUrl.trim() ? rawDatabaseUrl : undefined;
+// Accepts Vercel/Neon-style aliases so a project that only provides
+// POSTGRES_URL can never silently fall back to ephemeral storage.
+function pickDatabaseUrl(): string | undefined {
+  const candidates = [
+    typeof process !== "undefined" ? process.env.DATABASE_URL : undefined,
+    typeof process !== "undefined" ? process.env.POSTGRES_URL : undefined,
+    typeof process !== "undefined"
+      ? process.env.POSTGRES_URL_NON_POOLING
+      : undefined,
+  ];
+  for (const raw of candidates) {
+    if (raw && raw.trim()) return raw;
+  }
+  return undefined;
+}
+const databaseUrl = pickDatabaseUrl();
 
 /**
  * Active backend: real **Neon** when `DATABASE_URL` is set (deployed / configured

@@ -147,7 +147,7 @@ function authPopupPlugin(): Plugin {
 // AGENTS.md § "First scaffold".
 export default defineConfig(({ command, isPreview }) => {
   return {
-  envPrefix: ["VITE_", "NEXT_PUBLIC_", "SUPABASE_"],
+  envPrefix: ["VITE_"],
   server: {
     host: "0.0.0.0",
     port: 8080,

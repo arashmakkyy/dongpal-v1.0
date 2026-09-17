@@ -88,8 +88,19 @@ export function coerceReceipt(raw: unknown): ReceiptParse {
 }
 
 export const parseReceiptImage = createServerFn({ method: "POST" })
-  .validator((d: { image: string }) => d)
+  .validator((d: { image: string }) => {
+    if (!d || typeof d.image !== "string") throw new Error("invalid_image");
+    // Strict for the future re-enable: data-URL images only.
+    if (!/^data:image\/(png|jpe?g|webp);base64,/.test(d.image)) {
+      throw new Error("invalid_image");
+    }
+    return d;
+  })
   .handler(async ({ data }): Promise<{ ok: true; data: ReceiptParse } | { ok: false; error: string }> => {
+    // Temporarily disabled (coming-soon page): keep the implementation below
+    // intact, but never burn XAI quota until auth + rate limiting land.
+    void data;
+    return { ok: false, error: "disabled" };
     const apiKey = process.env.XAI_API_KEY;
     if (!apiKey) return { ok: false, error: "no-ai" };
     if (!data.image || data.image.length > 2_400_000) {

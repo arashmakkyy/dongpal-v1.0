@@ -18,13 +18,31 @@ import { dirname, join } from "node:path";
 import pg from "pg";
 import { pendingMigrations } from "./migration-plan.mjs";
 
-const databaseUrl = process.env.DATABASE_URL;
+function pickDatabaseUrl() {
+  // Deploy order: explicit DATABASE_URL wins; otherwise Vercel/Neon aliases.
+  // The migrator holds a single connection, so the non-pooling URL is
+  // preferred when DATABASE_URL is absent. Names only are ever logged —
+  // values are secrets and must never be printed.
+  const candidates = [
+    ["DATABASE_URL", process.env.DATABASE_URL],
+    ["POSTGRES_URL_NON_POOLING", process.env.POSTGRES_URL_NON_POOLING],
+    ["POSTGRES_URL", process.env.POSTGRES_URL],
+  ];
+  for (const [name, raw] of candidates) {
+    if (raw && raw.trim()) return { name, url: raw };
+  }
+  return null;
+}
+
+const picked = pickDatabaseUrl();
+const databaseUrl = picked?.url;
 if (!databaseUrl) {
   console.log(
-    "[migrate] DATABASE_URL not set — skipping (the PGLite fallback migrates itself).",
+    "[migrate] DATABASE_URL (or POSTGRES_URL) not set — skipping (the PGLite fallback migrates itself).",
   );
   process.exit(0);
 }
+console.log(`[migrate] using ${picked.name} (value hidden).`);
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "migrations");
 
